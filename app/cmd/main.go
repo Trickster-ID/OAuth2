@@ -6,7 +6,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/sirupsen/logrus"
 	"log"
-	"oauth2/app/helper"
+	"oauth2/app/configuration"
 	"os"
 	"os/signal"
 	"strconv"
@@ -15,12 +15,13 @@ import (
 )
 
 func main() {
-	helper.InitialConfig()
+	configuration.InitialConfig()
 	if len(os.Args) < 2 {
 		os.Args = append(os.Args, "main")
 	}
 
 	if os.Args[1] == "main" {
+		//postgres := configuration.InitPostgres()
 		fiberServer := InitializeFiberServer()
 		startHttpServer(fiberServer)
 	}
