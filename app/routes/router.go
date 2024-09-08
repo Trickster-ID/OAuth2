@@ -7,13 +7,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
+	"oauth2/app/controllers"
 	"os"
 )
 
 type Router struct {
 }
 
-func NewRouter() *fiber.App {
+func NewRouter(authController controllers.IAuthController) *fiber.App {
 	// Initialize a new Fiber app
 	f := fiber.New()
 	logLevel := os.Getenv("LOG_LEVEL")
@@ -45,5 +46,7 @@ func NewRouter() *fiber.App {
 		return c.Status(http.StatusOK).JSON(fiber.Map{"status": "success"})
 	})
 
+	f.Get("/login", authController.Login)
+	//v1WithMiddleware := f.Group("v1", middleware.Authorization())
 	return f
 }
