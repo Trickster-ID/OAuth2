@@ -7,13 +7,15 @@ import (
 )
 
 func Response(ctx fiber.Ctx, data any) error {
-	v := reflect.ValueOf(data)
-	t := v.Type()
-
-	// Check if the input is a slice or array
 	totalData := 0
-	if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
-		totalData = v.Len()
+	if data != nil {
+		v := reflect.ValueOf(data)
+		t := v.Type()
+
+		// Check if the input is a slice or array
+		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+			totalData = v.Len()
+		}
 	}
 	response := model.Api{
 		StatusCode:    200,

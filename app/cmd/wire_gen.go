@@ -8,12 +8,36 @@ package main
 
 import (
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/wire"
+	"oauth2/app/controllers"
+	"oauth2/app/global/db"
+	"oauth2/app/repositories/mongo_repo"
+	"oauth2/app/repositories/sql_repo"
 	"oauth2/app/routes"
+	"oauth2/app/usecases"
 )
 
 // Injectors from wire.go:
 
-func InitializeFiberServer() *fiber.App {
-	app := routes.NewRouter()
+func InitializeFiberServer(postgresParam db.PostgresParam, mongoParam db.MongoParam, redisParam db.RedisParam) *fiber.App {
+	conn := db.NewPostgresClient(postgresParam)
+	iAuthRepository := sql_repo.NewAuthRepository(conn)
+	client := db.NewMongoClient(mongoParam)
+	redisClient := db.NewRedisClient(redisParam)
+	iAccessTokenSessionsRepository := mongo_repo.NewAccessTokenSessionRepository(client, redisClient)
+	iRefreshTokenSessionsRepository := mongo_repo.NewRefreshTokenSessionRepository(client, redisClient)
+	iAuthUseCase := usecases.NewAuthUseCase(iAuthRepository, iAccessTokenSessionsRepository, iRefreshTokenSessionsRepository)
+	iAuthController := controllers.NewAuthController(iAuthUseCase)
+	app := routes.NewRouter(iAuthController)
 	return app
 }
+
+// wire.go:
+
+var connectionSet = wire.NewSet(db.NewPostgresClient, db.NewMongoClient, db.NewRedisClient)
+
+var controllerSet = wire.NewSet(controllers.NewAuthController)
+
+var useCaseSet = wire.NewSet(usecases.NewAuthUseCase)
+
+var repositorySet = wire.NewSet(sql_repo.NewAuthRepository, mongo_repo.NewAccessTokenSessionRepository, mongo_repo.NewRefreshTokenSessionRepository)

@@ -2,6 +2,7 @@ package helper
 
 import (
 	"encoding/json"
+	"oauth2/app/models"
 	"reflect"
 	"time"
 
@@ -113,4 +114,12 @@ func Contains[T comparable](s []T, e T) bool {
 		}
 	}
 	return false
+}
+
+func UserToUserJwt(req *models.Users) *models.UserDataOnJWT {
+	return &models.UserDataOnJWT{
+		Id:       req.Id,
+		Username: req.Username,
+		Email:    req.Email,
+	}
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"log"
 	"oauth2/app/configuration"
+	"oauth2/app/global/db"
 	"os"
 	"os/signal"
 	"strconv"
@@ -20,9 +21,12 @@ func main() {
 		os.Args = append(os.Args, "main")
 	}
 
+	postgresParam := db.PostgresGetEnvVariable().NewPostgresParam()
+	mongoParam := db.MongoGetEnvVariable().NewMongoParam()
+	redisParam := db.RedisGetEnvVariable().NewRedisParam()
+
 	if os.Args[1] == "main" {
-		//postgres := configuration.InitPostgres()
-		fiberServer := InitializeFiberServer()
+		fiberServer := InitializeFiberServer(postgresParam, mongoParam, redisParam)
 		startHttpServer(fiberServer)
 	}
 
@@ -39,7 +43,6 @@ func startHttpServer(f *fiber.App) {
 		logrus.Fatal(err)
 	}
 	go func() {
-		logrus.Info("Running server on port ", mainPort)
 		if err := f.Listen(fmt.Sprintf(":%d", mainPort)); err != nil {
 			logrus.Error(err)
 			logrus.Fatal("shutting down http server")

@@ -16,7 +16,13 @@ var DefaultStatusText = map[int]string{
 }
 
 func WriteLog(err error, errorCode int, message interface{}) *model.ErrorLog {
-	if pc, file, line, ok := runtime.Caller(1); ok {
+	return writeLogRaw(err, errorCode, message, true)
+}
+func WriteLogWoP(err error, errorCode int, message interface{}) *model.ErrorLog {
+	return writeLogRaw(err, errorCode, message, false)
+}
+func writeLogRaw(err error, errorCode int, message interface{}, isPrint bool) *model.ErrorLog {
+	if pc, file, line, ok := runtime.Caller(2); ok {
 		file = file[strings.LastIndex(file, "/")+1:]
 		funcName := runtime.FuncForPC(pc).Name()
 		output := &model.ErrorLog{
@@ -24,11 +30,12 @@ func WriteLog(err error, errorCode int, message interface{}) *model.ErrorLog {
 			Err:        err,
 		}
 		outputForPrint := &model.ErrorLog{
-			StatusCode: errorCode,
-			Err:        err,
-			Line:       fmt.Sprintf("%d", line),
-			Filename:   file,
-			Function:   funcName,
+			StatusCode:    errorCode,
+			Err:           err,
+			Line:          fmt.Sprintf("%d", line),
+			Filename:      file,
+			Function:      funcName,
+			SystemMessage: err.Error(),
 		}
 
 		output.SystemMessage = err.Error()
@@ -36,11 +43,9 @@ func WriteLog(err error, errorCode int, message interface{}) *model.ErrorLog {
 			output.Message = DefaultStatusText[errorCode]
 			if output.Message == "" {
 				output.Message = http.StatusText(errorCode)
-				outputForPrint.Message = http.StatusText(errorCode)
 			}
 		} else {
 			output.Message = message
-			outputForPrint.Message = message
 		}
 		if errorCode == http.StatusInternalServerError {
 			output.Line = fmt.Sprintf("%d", line)
@@ -48,12 +53,16 @@ func WriteLog(err error, errorCode int, message interface{}) *model.ErrorLog {
 			output.Function = funcName
 		}
 
-		logForPrint := map[string]interface{}{}
-		_ = DecodeMapType(outputForPrint, &logForPrint)
+		if isPrint {
+			logForPrint := map[string]interface{}{}
+			_ = DecodeMapType(outputForPrint, &logForPrint)
+			logrus.SetReportCaller(false)
+			logrus.WithFields(logForPrint).Error(message)
+			logrus.SetReportCaller(true)
+		}
 
 		log := map[string]interface{}{}
 		_ = DecodeMapType(output, &log)
-		logrus.WithFields(logForPrint).Error(err)
 		return output
 	}
 

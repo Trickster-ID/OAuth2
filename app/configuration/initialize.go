@@ -1,14 +1,12 @@
 package configuration
 
 import (
-	"database/sql"
-	"fmt"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
-	"time"
 )
 
 func InitialConfig() {
@@ -32,17 +30,9 @@ func InitialConfig() {
 
 }
 
-func InitPostgres() *sql.DB {
-	connectionString := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?sslmode=%s", os.Getenv("POSTGRES_USERNAME"), os.Getenv("POSTGRES_PASSWORD"), os.Getenv("POSTGRES_HOST"), os.Getenv("POSTGRES_PORT"), os.Getenv("POSTGRES_DATABASE"), os.Getenv("POSTGRES_SSLMODE"))
-	db, err := sql.Open("postgres", connectionString)
-
-	if err != nil {
-		logrus.Fatal(err)
+func FiberInitLogger(f *fiber.App) {
+	logLevel := os.Getenv("LOG_LEVEL")
+	if logLevel == "info" || logLevel == "debug" || logLevel == "trace" {
+		f.Use(logger.New())
 	}
-
-	db.SetConnMaxLifetime(time.Minute * 5)
-	db.SetMaxOpenConns(50)
-	db.SetMaxIdleConns(50)
-
-	return db
 }
