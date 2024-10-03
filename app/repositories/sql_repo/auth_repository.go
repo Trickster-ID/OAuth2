@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
+	"oauth2/app/global/db"
 	"oauth2/app/global/helper"
 	"oauth2/app/global/model"
 	"oauth2/app/models"
@@ -16,10 +17,10 @@ type IAuthRepository interface {
 }
 
 type authRepository struct {
-	db *pgx.Conn
+	db db.PgxIface
 }
 
-func NewAuthRepository(db *pgx.Conn) IAuthRepository {
+func NewAuthRepository(db db.PgxIface) IAuthRepository {
 	return &authRepository{
 		db: db,
 	}
