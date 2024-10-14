@@ -14,6 +14,36 @@ import (
 	"testing"
 )
 
+func TestLogin(t *testing.T) {
+	goMockController := gomock.NewController(t)
+	mockAuthRepo := mocksSql.NewMockIAuthRepository(goMockController)
+	mockAccessRepo := mocksMongo.NewMockIAccessTokenSessionsRepository(goMockController)
+	mockRefreshRepo := mocksMongo.NewMockIRefreshTokenSessionsRepository(goMockController)
+	useCase := NewAuthUseCase(mockAuthRepo, mockAccessRepo, mockRefreshRepo)
+
+	t.Run("+: admin", func(t *testing.T) {
+		returnValue := &models.Users{
+			Id:           1,
+			Username:     "admin",
+			Email:        "admin@live.com",
+			PasswordHash: "$2a$04$ZP1.DVAdR677eHTBUpDzE.0hHnp31JcyRK/eMF9Z7Y.iOWJkE/JNi",
+			RoleID:       1,
+			CreatedAt:    nil,
+			UpdatedAt:    nil,
+		}
+		mockAuthRepo.EXPECT().GetUserByUsernameOrEmail("admin", "", context.Background()).Return(returnValue, nil)
+		request := &dto.LoginRequest{
+			Username: "admin",
+			Email:    "",
+			Password: "admin",
+		}
+		response, errLog := useCase.ValidateUser(request, context.Background())
+		assert.Nil(t, errLog)
+		assert.NotNil(t, response)
+		assert.Equal(t, returnValue, response)
+	})
+}
+
 func TestValidateUser(t *testing.T) {
 	goMockController := gomock.NewController(t)
 	mockAuthRepo := mocksSql.NewMockIAuthRepository(goMockController)
