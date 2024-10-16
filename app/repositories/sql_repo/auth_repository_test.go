@@ -6,25 +6,29 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
+	"oauth2/app/configuration"
 	"oauth2/app/models"
 	"testing"
 	"time"
 )
 
 func TestGetUserByUsernameOrEmail(t *testing.T) {
+	configuration.InitialConfigForUnitTest()
 	// Create mock for pgx.Conn
 	mock, err := pgxmock.NewConn()
 	if err != nil {
 		t.Fatalf("failed to create pgxmock: %v", err)
 	}
-	defer mock.Close(context.Background())
+	defer func(mock pgxmock.PgxConnIface, ctx context.Context) {
+		_ = mock.Close(ctx)
+	}(mock, context.Background())
 
 	repo := NewAuthRepository(mock)
 
 	// Create a context
 	ctx := context.Background()
 
-	t.Run("should return user by username", func(t *testing.T) {
+	t.Run("+: return data", func(t *testing.T) {
 		// Expected result
 		now := time.Now()
 		expectedUser := &models.Users{
@@ -60,7 +64,7 @@ func TestGetUserByUsernameOrEmail(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
-	t.Run("should return error if username and email are empty", func(t *testing.T) {
+	t.Run("-: empty user pass", func(t *testing.T) {
 		// Call the method
 		user, errLog := repo.GetUserByUsernameOrEmail("", "", ctx)
 
@@ -74,7 +78,7 @@ func TestGetUserByUsernameOrEmail(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
-	t.Run("should return error when no user found", func(t *testing.T) {
+	t.Run("-: user notfound", func(t *testing.T) {
 		// Mock database response for no rows
 		mock.ExpectQuery(`select id, username, email, password_hash, role_id, created_at, updated_at from users where username = \$1`).
 			WithArgs("nonexistent").
@@ -93,7 +97,7 @@ func TestGetUserByUsernameOrEmail(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
-	t.Run("should return error on database failure", func(t *testing.T) {
+	t.Run("-: error database", func(t *testing.T) {
 		// Mock database response with an error
 		mock.ExpectQuery(`select id, username, email, password_hash, role_id, created_at, updated_at from users where username = \$1`).
 			WithArgs("testuser").

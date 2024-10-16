@@ -13,7 +13,6 @@ import (
 	"oauth2/app/repositories/mongo_repo"
 	"oauth2/app/repositories/sql_repo"
 	"oauth2/app/security"
-	"os"
 )
 
 type IAuthUseCase interface {
@@ -26,13 +25,15 @@ type authUseCase struct {
 	authRepository    sql_repo.IAuthRepository
 	accessRepository  mongo_repo.IAccessTokenSessionsRepository
 	refreshRepository mongo_repo.IRefreshTokenSessionsRepository
+	jwtSecurity       security.IJwtSecurity
 }
 
-func NewAuthUseCase(authRepository sql_repo.IAuthRepository, accessRepository mongo_repo.IAccessTokenSessionsRepository, refreshRepository mongo_repo.IRefreshTokenSessionsRepository) IAuthUseCase {
+func NewAuthUseCase(authRepository sql_repo.IAuthRepository, accessRepository mongo_repo.IAccessTokenSessionsRepository, refreshRepository mongo_repo.IRefreshTokenSessionsRepository, jwtSecurity security.IJwtSecurity) IAuthUseCase {
 	return &authUseCase{
 		authRepository:    authRepository,
 		accessRepository:  accessRepository,
 		refreshRepository: refreshRepository,
+		jwtSecurity:       jwtSecurity,
 	}
 }
 
@@ -43,7 +44,7 @@ func (u *authUseCase) Login(req *dto.LoginRequest, ctx context.Context) (*dto.Lo
 		return nil, errLog
 	}
 	if user == nil {
-		errLog = helper.WriteLog(errors.New("username or Email or Password is not valid"), 400, "")
+		errLog = helper.WriteLog(errors.New("username or email or password is not valid"), http.StatusUnauthorized, "")
 		return nil, errLog
 	}
 	userRequest := &models.UserDataOnJWT{
@@ -51,7 +52,7 @@ func (u *authUseCase) Login(req *dto.LoginRequest, ctx context.Context) (*dto.Lo
 		Username: user.Username,
 		Email:    user.Email,
 	}
-	tokenResult, err := security.GenerateToken(userRequest)
+	tokenResult, err := u.jwtSecurity.GenerateToken(userRequest)
 	if err != nil {
 		errLog = helper.WriteLog(err, http.StatusInternalServerError, "")
 		return nil, errLog
@@ -82,7 +83,7 @@ func (u *authUseCase) ValidateUser(request *dto.LoginRequest, ctx context.Contex
 	// validate password
 	err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(request.Password))
 	if err != nil {
-		errLog = helper.WriteLog(err, 401, "username or Email or Password is not valid")
+		errLog = helper.WriteLog(errors.New("username or email or password is not valid"), 401, "")
 		return nil, errLog
 	}
 	return user, nil
@@ -99,7 +100,7 @@ func (u *authUseCase) RefreshToken(req *dto.RefreshTokenRequest, ctx context.Con
 		responseChan <- res
 	}(responseChan)
 
-	resultValidate := security.ValidateToken(req.RefreshToken, os.Getenv("JWT_KEY_REFRESH_TOKEN"))
+	resultValidate := u.jwtSecurity.ValidateRefreshToken(req.RefreshToken)
 	if resultValidate.Error != nil {
 		if errors.Is(resultValidate.Error, jwt.ErrTokenExpired) {
 			errLog := helper.WriteLog(errors.New("unauthorized"), http.StatusUnauthorized, resultValidate.Error.Error())
@@ -112,7 +113,7 @@ func (u *authUseCase) RefreshToken(req *dto.RefreshTokenRequest, ctx context.Con
 	if responseGetSession.ErrLog != nil {
 		return nil, responseGetSession.ErrLog
 	}
-	token, err := security.GenerateAccessToken(responseGetSession.Data.UserData)
+	token, err := u.jwtSecurity.GenerateAccessToken(responseGetSession.Data.UserData)
 	if err != nil {
 		errLog := helper.WriteLog(err, http.StatusInternalServerError, "error generating access token")
 		return nil, errLog

@@ -27,7 +27,18 @@ func InitialConfig() {
 		logLevel = logrus.InfoLevel
 	}
 	logrus.SetLevel(logLevel)
+}
 
+func InitialConfigForUnitTest() {
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	logrus.SetReportCaller(true)
+	logrus.SetOutput(os.Stdout)
+	// Default to Info level if not set or invalid
+	logLevel, err := logrus.ParseLevel(strings.ToLower("panic"))
+	if err != nil {
+		logLevel = logrus.InfoLevel
+	}
+	logrus.SetLevel(logLevel)
 }
 
 func FiberInitLogger(f *fiber.App) {

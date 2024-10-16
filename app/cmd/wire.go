@@ -11,6 +11,7 @@ import (
 	"oauth2/app/repositories/mongo_repo"
 	"oauth2/app/repositories/sql_repo"
 	"oauth2/app/routes"
+	"oauth2/app/security"
 	"oauth2/app/usecases"
 )
 
@@ -34,12 +35,17 @@ var repositorySet = wire.NewSet(
 	mongo_repo.NewRefreshTokenSessionRepository,
 )
 
+var securitySet = wire.NewSet(
+	security.NewJwtSecurity,
+)
+
 func InitializeFiberServer(postgresParam db.PostgresParam, mongoParam db.MongoParam, redisParam db.RedisParam) *fiber.App {
 	wire.Build(
 		connectionSet,
 		controllerSet,
 		useCaseSet,
 		repositorySet,
+		securitySet,
 		routes.NewRouter,
 	)
 	return nil

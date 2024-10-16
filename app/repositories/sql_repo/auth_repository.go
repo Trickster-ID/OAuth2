@@ -49,7 +49,7 @@ func (r *authRepository) GetUserByUsernameOrEmail(username, email string, ctx co
 	`, whereClause), valueOfWhereCluase).Scan(&user.Id, &user.Username, &user.Email, &user.PasswordHash, &user.RoleID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			errLog := helper.WriteLog(err, 404, "please enter valid username")
+			errLog := helper.WriteLog(err, 404, "please enter valid username or email or password")
 			return nil, errLog
 		}
 		errLog := helper.WriteLog(err, 500, "error while getting user")

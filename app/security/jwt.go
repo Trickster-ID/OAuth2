@@ -12,8 +12,32 @@ import (
 	"time"
 )
 
+type IJwtSecurity interface {
+	GenerateToken(userData *models.UserDataOnJWT) (*dto.GenerateTokenResponse, error)
+	GenerateAccessToken(userData *models.UserDataOnJWT) (*dto.GenerateAccessTokenResponse, error)
+	ValidateAccessToken(accessToken string) *dto.ValidateTokenResponse
+	ValidateRefreshToken(refreshToken string) *dto.ValidateTokenResponse
+	RefreshToken(refreshToken string) (string, error)
+}
+
+type JwtSecurity struct {
+	JwtKeyAccessToken   string
+	AccessTokenExpired  time.Duration
+	JwtKeyRefreshToken  string
+	RefreshTokenExpired time.Duration
+}
+
+func NewJwtSecurity() IJwtSecurity {
+	return &JwtSecurity{
+		JwtKeyAccessToken:   os.Getenv("JWT_KEY_ACCESS_TOKEN"),
+		AccessTokenExpired:  constants.ACCESS_TOKEN_EXPIRED,
+		JwtKeyRefreshToken:  os.Getenv("JWT_KEY_REFRESH_TOKEN"),
+		RefreshTokenExpired: constants.REFRESH_TOKEN_EXPIRED,
+	}
+}
+
 // getToken will generate token with JWT lib
-func getToken(userData *models.UserDataOnJWT, expiredTime time.Time, secretKey string) (string, error) {
+func (s *JwtSecurity) getToken(userData *models.UserDataOnJWT, expiredTime time.Time, secretKey string) (string, error) {
 	claims := jwt.MapClaims{
 		"id":       userData.Id,
 		"username": userData.Username,
@@ -31,18 +55,18 @@ func getToken(userData *models.UserDataOnJWT, expiredTime time.Time, secretKey s
 	return token, nil
 }
 
-func GenerateToken(userData *models.UserDataOnJWT) (*dto.GenerateTokenResponse, error) {
+func (s *JwtSecurity) GenerateToken(userData *models.UserDataOnJWT) (*dto.GenerateTokenResponse, error) {
 	response := &dto.GenerateTokenResponse{
-		AccessTokenExpired:  time.Now().Add(constants.ACCESS_TOKEN_EXPIRED),
-		RefreshTokenExpired: time.Now().Add(constants.REFRESH_TOKEN_EXPIRED),
+		AccessTokenExpired:  time.Now().Add(s.AccessTokenExpired),
+		RefreshTokenExpired: time.Now().Add(s.RefreshTokenExpired),
 	}
-	accessToken, err := getToken(userData, response.AccessTokenExpired, os.Getenv("JWT_KEY_ACCESS_TOKEN"))
+	accessToken, err := s.getToken(userData, response.AccessTokenExpired, s.JwtKeyAccessToken)
 	if err != nil {
 		logrus.Error(err)
 		return nil, err
 	}
 	response.AccessToken = accessToken
-	refreshToken, err := getToken(userData, response.RefreshTokenExpired, os.Getenv("JWT_KEY_REFRESH_TOKEN"))
+	refreshToken, err := s.getToken(userData, response.RefreshTokenExpired, s.JwtKeyRefreshToken)
 	if err != nil {
 		logrus.Error(err)
 		return nil, err
@@ -51,11 +75,11 @@ func GenerateToken(userData *models.UserDataOnJWT) (*dto.GenerateTokenResponse, 
 	return response, nil
 }
 
-func GenerateAccessToken(userData *models.UserDataOnJWT) (*dto.GenerateAccessTokenResponse, error) {
+func (s *JwtSecurity) GenerateAccessToken(userData *models.UserDataOnJWT) (*dto.GenerateAccessTokenResponse, error) {
 	response := &dto.GenerateAccessTokenResponse{
-		AccessTokenExpired: time.Now().Add(constants.ACCESS_TOKEN_EXPIRED),
+		AccessTokenExpired: time.Now().Add(s.AccessTokenExpired),
 	}
-	accessToken, err := getToken(userData, response.AccessTokenExpired, os.Getenv("JWT_KEY_ACCESS_TOKEN"))
+	accessToken, err := s.getToken(userData, response.AccessTokenExpired, s.JwtKeyAccessToken)
 	if err != nil {
 		logrus.Error(err)
 		return nil, err
@@ -64,8 +88,16 @@ func GenerateAccessToken(userData *models.UserDataOnJWT) (*dto.GenerateAccessTok
 	return response, nil
 }
 
+func (s *JwtSecurity) ValidateAccessToken(accessToken string) *dto.ValidateTokenResponse {
+	return s.validateToken(accessToken, s.JwtKeyAccessToken)
+}
+
+func (s *JwtSecurity) ValidateRefreshToken(refreshToken string) *dto.ValidateTokenResponse {
+	return s.validateToken(refreshToken, s.JwtKeyRefreshToken)
+}
+
 // ValidateToken will validate jwt token for middleware function
-func ValidateToken(tokenString, secretKey string) *dto.ValidateTokenResponse {
+func (s *JwtSecurity) validateToken(tokenString, secretKey string) *dto.ValidateTokenResponse {
 	response := &dto.ValidateTokenResponse{}
 	// Parse the token and validate its signature
 	token, err := jwt.Parse(tokenString,
@@ -99,13 +131,13 @@ func ValidateToken(tokenString, secretKey string) *dto.ValidateTokenResponse {
 	return response
 }
 
-func RefreshToken(refreshToken string) (string, error) {
-	response := ValidateToken(refreshToken, os.Getenv("JWT_KEY_REFRESH_TOKEN"))
+func (s *JwtSecurity) RefreshToken(refreshToken string) (string, error) {
+	response := s.ValidateRefreshToken(refreshToken)
 	if response.Error != nil {
 		logrus.Error(response.Error)
 		return "", response.Error
 	}
-	newToken, err := getToken(response.User, time.Now().Add(time.Hour*24), os.Getenv("JWT_KEY_ACCESS_TOKEN"))
+	newToken, err := s.getToken(response.User, time.Now().Add(time.Hour*24), s.JwtKeyAccessToken)
 	if err != nil {
 		logrus.Error(err)
 		return "", err

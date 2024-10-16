@@ -50,7 +50,7 @@ func PostgresGetEnvVariable() *PostgresRawCredential {
 	}
 }
 
-func NewPostgresClient(dbURL PostgresParam) *pgx.Conn {
+func NewPostgresClient(dbURL PostgresParam) PgxIface {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	conn, err := pgx.Connect(ctx, dbURL.PostgresURL)

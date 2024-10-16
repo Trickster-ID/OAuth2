@@ -25,7 +25,8 @@ func TokenMiddleware() fiber.Handler {
 
 		// Check if the token is in the format "Bearer <token>"
 		tokenString := strings.TrimSpace(strings.Replace(authHeader, "Bearer", "", 1))
-		response := security.ValidateToken(tokenString, os.Getenv("JWT_KEY_ACCESS_TOKEN"))
+		jwtSecurity := security.NewJwtSecurity()
+		response := jwtSecurity.ValidateAccessToken(tokenString)
 		if response.Error != nil {
 			if errors.Is(response.Error, jwt.ErrTokenExpired) {
 				errLog := helper.WriteLog(errors.New("unauthorized"), http.StatusUnauthorized, response.Error.Error())
